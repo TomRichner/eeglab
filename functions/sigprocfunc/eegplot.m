@@ -411,7 +411,7 @@ if ~ischar(data) % If NOT a 'noui' call or a callback from uicontrols
    
    if ~iscell(g.color)
 	   switch lower(g.color)
-		case 'on', g.color = { 'k', 'm', 'c', 'b', 'g' }; 
+		case 'on', tmp = lines(7); g.color = arrayfun(@(i) tmp(i,:), 1:7, 'UniformOutput', false);
 		case 'off', g.color = { [ 0 0 0.4] };  
 		otherwise 
 		 disp('Error: color must be either ''on'' or ''off'' or a cell array'); 
@@ -1369,29 +1369,34 @@ else
     end
     
     % plot good channels on top of bad channels (if g.eloc_file(i).badchan = 0... or there is no bad channel information)
-    if strcmpi(g.plotdata2, 'on')
-        tmpcolor = [ 1 0 0 ];
-    else tmpcolor = g.color{mod(g.chans-i,length(g.color))+1};
-    end
-    
-    %        keyboard;
-    if (isfield(g, 'eloc_file') && isfield(g.eloc_file, 'badchan') && ~g.eloc_file(g.chans-i+1).badchan) || ...
-            (~isfield(g, 'eloc_file')) || (~isfield(g.eloc_file, 'badchan'))
-        plot(ax1, bsxfun(@plus, data(end:-1:1,lowlim:highlim), g.spacing*[1:g.chans]'-meandata(end:-1:1)')' + (g.dispchans+1)*(oldspacing-g.spacing)/2 +g.elecoffset*(oldspacing-g.spacing), ...
-            'color', tmpcolor, 'clipping','on');
-% % This speeds things up below but there are
-% % drawback the plot handles should be passed as argument instead of using
-% % persistent var; also this does not allow plotting 2 sets of data
-%         persistent hplot;
-%         if isempty(hplot)
-%             hplot = plot(bsxfun(@plus, data(end:-1:1,lowlim:highlim), g.spacing*[1:g.chans]'-meandata(end:-1:1)')' + (g.dispchans+1)*(oldspacing-g.spacing)/2 +g.elecoffset*(oldspacing-g.spacing), ...
-%                 'color', tmpcolor, 'clipping','on');
-%         else
-%             data2plot = bsxfun(@plus, data(end:-1:1,lowlim:highlim), g.spacing*[1:g.chans]'-meandata(end:-1:1)')' + (g.dispchans+1)*(oldspacing-g.spacing)/2 +g.elecoffset*(oldspacing-g.spacing);
-%             for iChan = 1:g.chans
-%                 set(hplot(iChan), 'ydata', data2plot(:,iChan)');
-%             end
-%         end
+    if length(g.color) > 1
+        % Per-channel color loop (supports multi-color display)
+        for i = 1:g.chans
+            if strcmpi(g.plotdata2, 'on')
+                tmpcolor = [ 1 0 0 ];
+            else
+                tmpcolor = g.color{mod(i-1, length(g.color))+1};
+            end
+            if (isfield(g, 'eloc_file') && isfield(g.eloc_file, 'badchan') && ~g.eloc_file(g.chans-i+1).badchan) || ...
+                    (~isfield(g, 'eloc_file')) || (~isfield(g.eloc_file, 'badchan'))
+                plot(ax1, data(g.chans-i+1, lowlim:highlim) ...
+                    - meandata(g.chans-i+1) + i*g.spacing ...
+                    + (g.dispchans+1)*(oldspacing-g.spacing)/2 ...
+                    + g.elecoffset*(oldspacing-g.spacing), ...
+                    'color', tmpcolor, 'clipping', 'on');
+            end
+        end
+    else
+        % Single-color bulk plot (fast path)
+        if strcmpi(g.plotdata2, 'on')
+            tmpcolor = [ 1 0 0 ];
+        else tmpcolor = g.color{1};
+        end
+        if (isfield(g, 'eloc_file') && isfield(g.eloc_file, 'badchan') && ~g.eloc_file(g.chans-i+1).badchan) || ...
+                (~isfield(g, 'eloc_file')) || (~isfield(g.eloc_file, 'badchan'))
+            plot(ax1, bsxfun(@plus, data(end:-1:1,lowlim:highlim), g.spacing*[1:g.chans]'-meandata(end:-1:1)')' + (g.dispchans+1)*(oldspacing-g.spacing)/2 +g.elecoffset*(oldspacing-g.spacing), ...
+                'color', tmpcolor, 'clipping','on');
+        end
     end
     
     % draw selected channels
